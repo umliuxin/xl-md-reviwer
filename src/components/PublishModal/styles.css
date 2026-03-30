@@ -1,0 +1,161 @@
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+.modal-content h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  color: #24292f;
+}
+
+.modal-description {
+  color: #666;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.review-type-section {
+  margin-bottom: 20px;
+}
+
+.review-type-label {
+  display: block;
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 12px;
+  color: #24292f;
+}
+
+.review-type-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.review-type-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #e1e4e8;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.review-type-option:hover {
+  border-color: #0366d6;
+  background: #f6f8fa;
+}
+
+.review-type-option input {
+  margin-top: 2px;
+}
+
+.review-type-option input:checked + .option-text strong {
+  color: #0366d6;
+}
+
+.option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.option-text strong {
+  font-size: 14px;
+  color: #24292f;
+}
+
+.option-text small {
+  font-size: 12px;
+  color: #6a737d;
+}
+
+.review-body-section {
+  margin-bottom: 20px;
+}
+
+.review-body-section label {
+  display: block;
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 8px;
+  color: #24292f;
+}
+
+.review-body-section textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 10px;
+  font-size: 14px;
+  border: 1px solid #e1e4e8;
+  border-radius: 6px;
+  resize: vertical;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.review-body-section textarea:focus {
+  outline: none;
+  border-color: #0366d6;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.modal-actions button {
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.cancel-btn {
+  background: white;
+  border: 1px solid #e1e4e8;
+  color: #24292f;
+}
+
+.cancel-btn:hover:not(:disabled) {
+  background: #f6f8fa;
+}
+
+.publish-btn {
+  background: #2da44e;
+  border: none;
+  color: white;
+}
+
+.publish-btn:hover:not(:disabled) {
+  background: #2c974b;
+}
+
+.publish-btn:disabled,
+.cancel-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

@@ -1,5 +1,5 @@
 .comment-sidebar {
-  width: 320px;
+  width: 360px;
   background: #f6f8fa;
   border-left: 1px solid #e1e4e8;
   height: 100vh;
@@ -7,6 +7,7 @@
   top: 0;
   overflow-y: auto;
   padding: 16px;
+  box-sizing: border-box;
 }
 
 .sidebar-header {
@@ -23,24 +24,38 @@
   color: #24292f;
 }
 
-.show-resolved {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: #6a737d;
+.publish-btn {
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: white;
+  background: #2da44e;
+  border: none;
+  border-radius: 6px;
   cursor: pointer;
+  transition: background 0.15s;
 }
 
-.show-resolved input {
-  cursor: pointer;
+.publish-btn:hover {
+  background: #2c974b;
 }
 
-.new-comment-form {
+/* New comment section */
+.new-comment-section {
+  background: white;
+  border: 1px solid #e1e4e8;
+  border-radius: 8px;
+  padding: 12px;
   margin-bottom: 16px;
 }
 
-.new-comment-form textarea {
+.new-comment-hint {
+  font-size: 12px;
+  color: #6a737d;
+  margin-bottom: 8px;
+}
+
+.new-comment-section textarea {
   width: 100%;
   min-height: 80px;
   padding: 10px;
@@ -52,12 +67,16 @@
   box-sizing: border-box;
 }
 
-.new-comment-form textarea:focus {
+.new-comment-section textarea:focus {
   outline: none;
   border-color: #0366d6;
 }
 
-.new-comment-form button {
+.new-comment-section textarea:disabled {
+  background: #f6f8fa;
+}
+
+.new-comment-section button {
   margin-top: 8px;
   width: 100%;
   padding: 8px 16px;
@@ -71,15 +90,16 @@
   transition: background 0.15s;
 }
 
-.new-comment-form button:hover:not(:disabled) {
+.new-comment-section button:hover:not(:disabled) {
   background: #0256b9;
 }
 
-.new-comment-form button:disabled {
+.new-comment-section button:disabled {
   background: #ccc;
   cursor: not-allowed;
 }
 
+/* Hint when no block selected */
 .sidebar-hint {
   color: #6a737d;
   font-size: 14px;
@@ -89,6 +109,46 @@
   border-radius: 6px;
   border: 1px dashed #e1e4e8;
   margin-bottom: 16px;
+}
+
+/* Comments sections */
+.comments-section {
+  margin-bottom: 20px;
+}
+
+.section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6a737d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 12px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pending-title {
+  color: #92400e;
+}
+
+.selected-title {
+  color: #0366d6;
+}
+
+.comments-divider {
+  height: 1px;
+  background: #e1e4e8;
+  margin: 16px 0;
+}
+
+.draft-badge {
+  font-size: 10px;
+  font-weight: 600;
+  background: #fbbf24;
+  color: #78350f;
+  padding: 2px 6px;
+  border-radius: 4px;
 }
 
 .comments-list {

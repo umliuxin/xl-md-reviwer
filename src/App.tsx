@@ -68,7 +68,8 @@ function clearHash() {
 function App() {
   const [prInfo, setPrInfo] = useState<PRInfo | null>(null);
   const [comments, setComments] = useState<PRComments>(emptyComments);
-  const [isLoading, setIsLoading] = useState(false);
+  // Start loading if URL has a PR hash
+  const [isLoading, setIsLoading] = useState(() => parsePRFromHash() !== null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedFileIndex, setSelectedFileIndex] = useState(0);
@@ -162,12 +163,19 @@ function App() {
 
   // Add a local pending comment (stored in state, not GitHub)
   const handleAddComment = async (blockId: string, body: string) => {
-    if (!prInfo || !blockToLine) return;
+    if (!prInfo) return;
 
-    const line = blockToLine.get(blockId);
+    // Try to get line from mapping, fallback to parsing blockId
+    let line = blockToLine?.get(blockId);
     if (!line) {
-      console.error('Could not find line number for block:', blockId);
-      return;
+      // BlockId format: "{filePath}-line-{lineNumber}"
+      const match = blockId.match(/-line-(\d+)$/);
+      if (match) {
+        line = parseInt(match[1], 10);
+      } else {
+        console.error('Could not find line number for block:', blockId);
+        return;
+      }
     }
 
     const currentFile = prInfo.files[selectedFileIndex];
@@ -279,6 +287,14 @@ function App() {
   };
 
   if (!prInfo) {
+    // Show simple loading screen when loading from URL hash
+    if (isLoading) {
+      return (
+        <div className="loading-screen">
+          <p>Loading PR...</p>
+        </div>
+      );
+    }
     return <PRInput onSubmit={handleLoadPR} isLoading={isLoading} error={error} />;
   }
 

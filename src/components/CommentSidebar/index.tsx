@@ -287,9 +287,13 @@ export function CommentSidebar({
   // Create unified threads
   const unifiedThreads = createUnifiedThreads(fileSubmitted, fileLocalPending);
 
-  // Split into active and hidden (outdated or resolved)
-  const activeThreads = unifiedThreads.filter((t) => !t.isOutdated && !t.isResolved);
-  const hiddenThreads = unifiedThreads.filter((t) => t.isOutdated || t.isResolved);
+  // Split into active and hidden (outdated or resolved), sort by line number
+  const activeThreads = unifiedThreads
+    .filter((t) => !t.isOutdated && !t.isResolved)
+    .sort((a, b) => a.line - b.line);
+  const hiddenThreads = unifiedThreads
+    .filter((t) => t.isOutdated || t.isResolved)
+    .sort((a, b) => a.line - b.line);
 
   const handlePublish = async (event: ReviewEvent, body?: string) => {
     await onPublishReview(event, body);
@@ -297,7 +301,7 @@ export function CommentSidebar({
   };
 
   const handleReplyToReview = (thread: UnifiedThread, body: string) => {
-    const githubThread = fileSubmitted.find((t) => t.blockId === thread.blockId);
+    const githubThread = fileSubmitted.find((t) => t.id === thread.githubThreadId);
     if (githubThread) {
       onReplyToReview(githubThread, body);
     }

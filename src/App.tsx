@@ -344,24 +344,25 @@ function App() {
         </a>
       </div>
 
+      {prInfo.files.length > 1 && (
+        <div className="file-list">
+          {prInfo.files.map((file, index) => (
+            <button
+              key={file.path}
+              className={`file-item ${index === selectedFileIndex ? 'active' : ''}`}
+              onClick={() => {
+                setSelectedFileIndex(index);
+                setSelectedBlockId(null);
+                setShowInlineForm(false);
+              }}
+            >
+              {file.path}
+            </button>
+          ))}
+        </div>
+      )}
+
       <main className="app-main">
-        {prInfo.files.length > 1 && (
-          <div className="file-list">
-            {prInfo.files.map((file, index) => (
-              <button
-                key={file.path}
-                className={`file-item ${index === selectedFileIndex ? 'active' : ''}`}
-                onClick={() => {
-                  setSelectedFileIndex(index);
-                  setSelectedBlockId(null);
-                  setShowInlineForm(false);
-                }}
-              >
-                {file.path}
-              </button>
-            ))}
-          </div>
-        )}
         <div
           className="viewer-container"
           onClick={(e) => {

@@ -67,13 +67,14 @@ export function PRInput({ onSubmit, isLoading, error }: PRInputProps) {
   const [hasToken, setHasToken] = useState(false);
   const [showTokenInput, setShowTokenInput] = useState(false);
   const [recentPRs, setRecentPRs] = useState<RecentPR[]>([]);
-  const [showTutorial, setShowTutorial] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(() => !getStoredToken());
 
   useEffect(() => {
     const storedToken = getStoredToken();
     if (storedToken) {
       setGitHubToken(storedToken);
       setHasToken(true);
+      setShowTutorial(false);
     }
     setRecentPRs(getRecentPRs());
   }, []);

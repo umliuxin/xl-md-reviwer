@@ -105,12 +105,14 @@ function App() {
   }, [prInfo, comments.localPending]);
 
 
-  // Apply line mapping to submitted comments
+  // Apply line mapping to submitted comments (only for current file)
+  const currentFilePath = prInfo?.files[selectedFileIndex]?.path;
   const mappedComments: PRComments = {
     ...comments,
     submitted: comments.submitted.map((thread) => ({
       ...thread,
-      blockId: lineMapping?.get(thread.line) || null,
+      // Only map comments for the current file, others get null blockId
+      blockId: thread.path === currentFilePath ? (lineMapping?.get(thread.line) || null) : null,
     })),
   };
 
@@ -320,23 +322,6 @@ function App() {
           </span>
         </div>
         <div className="header-actions">
-          {prInfo.files.length > 1 && (
-            <select
-              className="file-selector"
-              value={selectedFileIndex}
-              onChange={(e) => {
-                setSelectedFileIndex(Number(e.target.value));
-                setSelectedBlockId(null);
-                setShowInlineForm(false);
-              }}
-            >
-              {prInfo.files.map((file, index) => (
-                <option key={file.path} value={index}>
-                  {file.path}
-                </option>
-              ))}
-            </select>
-          )}
           <button
             type="button"
             className="sync-btn"
@@ -348,7 +333,35 @@ function App() {
         </div>
       </header>
 
+      <div className="md-only-banner">
+        Viewing {prInfo.files.length} markdown {prInfo.files.length === 1 ? 'file' : 'files'}.{' '}
+        <a
+          href={`https://github.com/${prInfo.owner}/${prInfo.repo}/pull/${prInfo.number}/files`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Review code changes in GitHub →
+        </a>
+      </div>
+
       <main className="app-main">
+        {prInfo.files.length > 1 && (
+          <div className="file-list">
+            {prInfo.files.map((file, index) => (
+              <button
+                key={file.path}
+                className={`file-item ${index === selectedFileIndex ? 'active' : ''}`}
+                onClick={() => {
+                  setSelectedFileIndex(index);
+                  setSelectedBlockId(null);
+                  setShowInlineForm(false);
+                }}
+              >
+                {file.path}
+              </button>
+            ))}
+          </div>
+        )}
         <div
           className="viewer-container"
           onClick={(e) => {

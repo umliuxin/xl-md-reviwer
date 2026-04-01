@@ -69,19 +69,35 @@
   gap: 12px;
 }
 
-.file-selector {
-  padding: 8px 12px;
-  font-size: 14px;
-  border: 1px solid #e1e4e8;
-  border-radius: 6px;
+.file-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 20px;
   background: white;
-  cursor: pointer;
-  max-width: 300px;
+  border-bottom: 1px solid #e1e4e8;
 }
 
-.file-selector:focus {
-  outline: none;
+.file-item {
+  padding: 6px 12px;
+  font-size: 13px;
+  border: 1px solid #e1e4e8;
+  border-radius: 6px;
+  background: #f6f8fa;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: #24292f;
+}
+
+.file-item:hover {
+  background: #e1e4e8;
+  border-color: #d0d7de;
+}
+
+.file-item.active {
+  background: #0366d6;
   border-color: #0366d6;
+  color: white;
 }
 
 .sync-btn {
@@ -102,6 +118,24 @@
 .sync-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.md-only-banner {
+  padding: 8px 20px;
+  background: #f1f8ff;
+  border-bottom: 1px solid #c8e1ff;
+  font-size: 13px;
+  color: #0366d6;
+}
+
+.md-only-banner a {
+  color: #0366d6;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.md-only-banner a:hover {
+  text-decoration: underline;
 }
 
 .app-main {

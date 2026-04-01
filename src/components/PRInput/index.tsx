@@ -116,7 +116,7 @@ export function PRInput({ onSubmit, isLoading, error }: PRInputProps) {
   return (
     <div className="pr-input-container">
       <h1>MD Viewer</h1>
-      <p className="subtitle">Review markdown files from GitHub PRs with inline comments</p>
+      <p className="subtitle">Review markdown files from GitHub PRs with inline comments. For code changes, use GitHub's UI.</p>
 
       <div className="token-status">
         {hasToken ? (
@@ -225,6 +225,9 @@ export function PRInput({ onSubmit, isLoading, error }: PRInputProps) {
               <li><strong>Publish</strong> - Click "Publish" to submit all draft comments as a GitHub review</li>
               <li><strong>Sync</strong> - Click "Sync with GitHub" to fetch latest comments from others</li>
             </ol>
+            <p className="tutorial-note">
+              <strong>Note:</strong> This tool only shows markdown (.md) files. Code changes and non-markdown files should be reviewed directly in GitHub.
+            </p>
             <p className="tutorial-note">
               Your comments are saved locally until published. Refresh the page anytime - your drafts persist.
             </p>

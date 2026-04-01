@@ -67,6 +67,7 @@ export function PRInput({ onSubmit, isLoading, error }: PRInputProps) {
   const [hasToken, setHasToken] = useState(false);
   const [showTokenInput, setShowTokenInput] = useState(false);
   const [recentPRs, setRecentPRs] = useState<RecentPR[]>([]);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   useEffect(() => {
     const storedToken = getStoredToken();
@@ -203,6 +204,32 @@ export function PRInput({ onSubmit, isLoading, error }: PRInputProps) {
           </ul>
         </div>
       )}
+
+      <div className="tutorial-section">
+        <button
+          className="tutorial-toggle"
+          onClick={() => setShowTutorial(!showTutorial)}
+        >
+          <span className="toggle-icon">{showTutorial ? '▼' : '▶'}</span>
+          How to use
+        </button>
+
+        {showTutorial && (
+          <div className="tutorial-content">
+            <ol>
+              <li><strong>Add your GitHub token</strong> - Run <code>gh auth token</code> in terminal and paste it above</li>
+              <li><strong>Load a PR</strong> - Paste any GitHub PR URL and click "Load PR"</li>
+              <li><strong>Add comments</strong> - Click on any paragraph, heading, or list item to add a comment</li>
+              <li><strong>Reply to threads</strong> - Use "Add to review" to batch replies, or "Post now" for immediate</li>
+              <li><strong>Publish</strong> - Click "Publish" to submit all draft comments as a GitHub review</li>
+              <li><strong>Sync</strong> - Click "Sync with GitHub" to fetch latest comments from others</li>
+            </ol>
+            <p className="tutorial-note">
+              Your comments are saved locally until published. Refresh the page anytime - your drafts persist.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

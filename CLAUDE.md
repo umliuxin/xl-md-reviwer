@@ -8,32 +8,51 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run dev      # Start development server (Vite)
 npm run build    # TypeScript check + production build
 npm run preview  # Preview production build locally
+npm run deploy   # Build and deploy to GitHub Pages
 ```
 
 ## Architecture
 
-This is a React + TypeScript web app for reviewing markdown files from GitHub PRs with Google Docs-like inline commenting.
+React + TypeScript web app for reviewing markdown files from GitHub PRs with inline commenting.
 
 ### Data Flow
 
 1. **PRInput** → User pastes GitHub PR URL + configures auth token
-2. **github.ts** → Fetches PR metadata and markdown file contents via Octokit
-3. **App.tsx** → Manages PR state, file selection, and block selection
-4. **MarkdownViewer** → Renders markdown with react-markdown, wraps each block (p, h1-h3, li, blockquote) in commentable elements with `data-block-id`
-5. **CommentSidebar** → Shows comment threads for selected block
-6. **comments.ts (Zustand)** → Persists comments to localStorage
+2. **github.ts** → Fetches PR metadata, markdown contents, and comments via Octokit (REST + GraphQL)
+3. **App.tsx** → Manages PR state, file selection, block selection, and local pending comments
+4. **lineMapping.ts** → Parses markdown AST to map line numbers to block IDs
+5. **MarkdownViewer** → Renders markdown with react-markdown, wraps blocks in commentable elements with `data-block-id`
+6. **CommentSidebar** → Shows unified threads (GitHub + local comments merged), sorted by line position
+7. **InlineCommentForm** → Portal-based popover for adding new comments
 
 ### Key Patterns
 
-- **Block IDs**: Each commentable element gets an ID like `{filePath}-block-{index}`. Comments are linked to blocks via `blockId`.
-- **GitHub Auth**: Token stored in localStorage, loaded on init. Required for linkedin-multiproduct private repos.
-- **State**: Zustand with `persist` middleware for comments; React useState for UI state (selected file, selected block, PR info).
+- **Block IDs**: Format is `{filePath}-line-{lineNumber}`. Comments link to blocks via `blockId`.
+- **Local-first comments**: New comments stored in localStorage as `LocalPendingComment` until batch-published to GitHub.
+- **Unified threads**: `createUnifiedThreads()` merges GitHub threads and local comments by thread ID, displaying them together.
+- **Resolved/Outdated detection**: GraphQL fetches thread resolution status; REST API's `line: null` + `original_line` indicates outdated.
+- **URL persistence**: PR info stored in URL hash (`#owner/repo/number`) for refresh support.
+
+### Comment Publishing Flow
+
+1. User adds comments locally → stored in `comments.localPending` + localStorage
+2. User clicks "Publish" → `publishReview()` separates new comments from replies
+3. New comments → `pulls.createReview()` API
+4. Replies to existing threads → `pulls.createReplyForReviewComment()` API
 
 ### Component Responsibilities
 
 | Component | Purpose |
 |-----------|---------|
-| `PRInput` | Landing page: token config + PR URL input |
-| `MarkdownViewer` | Renders markdown, makes blocks clickable, shows comment indicators |
-| `CommentSidebar` | Lists comments for selected block, add/reply/resolve/delete |
-| `CommentThread` | Single comment with replies |
+| `PRInput` | Landing page: token config, PR URL input, recent PRs list |
+| `MarkdownViewer` | Renders markdown, makes blocks clickable, shows comment count indicators |
+| `CommentSidebar` | Lists unified threads, reply forms, publish button, collapsed resolved/outdated section |
+| `InlineCommentForm` | Positioned popover for new comment input |
+| `PublishModal` | Review event selection (Comment/Approve/Request Changes) before publishing |
+
+### Types (src/types/index.ts)
+
+- `GitHubComment` - Comment from GitHub API with `isOutdated` and `isResolved` flags
+- `CommentThread` - Grouped GitHub comments (root + replies)
+- `LocalPendingComment` - Unpublished local comment with `replyToThreadId` and `groupKey`
+- `UnifiedThread` - Merged view of GitHub thread + local comments for display

@@ -1,0 +1,120 @@
+.inline-comment-form {
+  width: 300px;
+  background: white;
+  border: 1px solid #e1e4e8;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 12px;
+  z-index: 1000;
+  animation: slideIn 0.15s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.inline-comment-form::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 16px;
+  width: 0;
+  height: 0;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-right: 8px solid #e1e4e8;
+}
+
+.inline-comment-form::after {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: 17px;
+  width: 0;
+  height: 0;
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+  border-right: 7px solid white;
+}
+
+.inline-comment-form textarea {
+  width: 100%;
+  min-height: 60px;
+  padding: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  border: 1px solid #e1e4e8;
+  border-radius: 6px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.inline-comment-form textarea:focus {
+  outline: none;
+  border-color: #0366d6;
+  box-shadow: 0 0 0 2px rgba(3, 102, 214, 0.1);
+}
+
+.inline-comment-form textarea:disabled {
+  background: #f6f8fa;
+}
+
+.inline-comment-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.inline-comment-actions button {
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.inline-comment-actions .cancel-btn {
+  background: white;
+  border: 1px solid #e1e4e8;
+  color: #24292f;
+}
+
+.inline-comment-actions .cancel-btn:hover:not(:disabled) {
+  background: #f6f8fa;
+}
+
+.inline-comment-actions .submit-btn {
+  background: #2da44e;
+  border: none;
+  color: white;
+}
+
+.inline-comment-actions .submit-btn:hover:not(:disabled) {
+  background: #2c974b;
+}
+
+.inline-comment-actions .submit-btn:disabled {
+  background: #94d3a2;
+  cursor: not-allowed;
+}
+
+.inline-comment-actions .cancel-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.inline-comment-hint {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #8b949e;
+  text-align: right;
+}

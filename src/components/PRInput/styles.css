@@ -241,18 +241,33 @@
 
 .recent-pr-info {
   display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.recent-pr-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #24292f;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recent-pr-meta {
+  display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .recent-pr-repo {
-  font-size: 13px;
-  color: #24292f;
-  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 12px;
+  color: #6a737d;
 }
 
 .recent-pr-number {
-  font-size: 13px;
+  font-size: 12px;
   color: #0066cc;
   font-weight: 600;
 }

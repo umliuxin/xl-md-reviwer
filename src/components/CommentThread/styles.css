@@ -4,15 +4,19 @@
   border-radius: 8px;
   padding: 12px;
   transition: all 0.15s;
+  cursor: pointer;
 }
 
 .comment-thread:hover {
-  border-color: #0366d6;
+  border-color: #3b82f6;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .comment-thread.active {
-  border-color: #2196f3;
-  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.2);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+  background: #eff6ff;
+  transform: scale(1.02);
 }
 
 .comment-thread.pending {
@@ -203,25 +207,44 @@
 .reply-buttons button {
   padding: 6px 12px;
   font-size: 12px;
+  font-weight: 500;
   border-radius: 4px;
   cursor: pointer;
   border: none;
+  transition: all 0.15s;
 }
 
-.reply-buttons button:first-child {
-  background: #0366d6;
+/* Add to review button - Orange (matches local drafts) */
+.reply-buttons button.add-to-review {
+  background: #f97316;
   color: white;
 }
 
-.reply-buttons button:first-child:hover:not(:disabled) {
-  background: #0256b9;
+.reply-buttons button.add-to-review:hover:not(:disabled) {
+  background: #ea580c;
 }
 
-.reply-buttons button:first-child:disabled {
-  background: #ccc;
+.reply-buttons button.add-to-review:disabled {
+  background: #fdba74;
   cursor: not-allowed;
 }
 
+/* Post now button - Blue (matches GitHub) */
+.reply-buttons button.reply-now {
+  background: #3b82f6;
+  color: white;
+}
+
+.reply-buttons button.reply-now:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.reply-buttons button.reply-now:disabled {
+  background: #93c5fd;
+  cursor: not-allowed;
+}
+
+/* Cancel button */
 .reply-buttons button.cancel {
   background: #f6f8fa;
   border: 1px solid #e1e4e8;

@@ -4,10 +4,9 @@ import type {
   PRInfo,
   GitHubComment,
   GitHubUser,
-  PendingReview,
-  PRComments,
   CommentThread,
   ReviewEvent,
+  LocalPendingComment,
 } from '../types';
 
 let octokit: Octokit | null = null;
@@ -16,7 +15,7 @@ let cachedUser: GitHubUser | null = null;
 export function setGitHubToken(token: string) {
   octokit = new Octokit({ auth: token });
   localStorage.setItem('gh-token', token);
-  cachedUser = null; // Reset cached user on token change
+  cachedUser = null;
 }
 
 export function getStoredToken(): string | null {
@@ -136,7 +135,7 @@ export async function fetchPRInfo(owner: string, repo: string, prNumber: number)
 }
 
 // ===========================================
-// FETCH COMMENTS
+// FETCH COMMENTS (from GitHub)
 // ===========================================
 
 function toGitHubComment(raw: {
@@ -150,21 +149,82 @@ function toGitHubComment(raw: {
   updated_at: string;
   in_reply_to_id?: number;
 }): GitHubComment {
+  // If line is null but original_line exists, the comment is outdated
+  // (the line no longer exists in the current version)
+  const isOutdated = raw.line == null && raw.original_line != null;
+
   return {
     id: raw.id,
     path: raw.path || '',
     line: raw.line || raw.original_line || 0,
+    originalLine: raw.original_line || raw.line || 0,
     body: raw.body || '',
     author: raw.user?.login || 'unknown',
     authorAvatar: raw.user?.avatar_url || '',
     createdAt: new Date(raw.created_at),
     updatedAt: new Date(raw.updated_at),
     inReplyToId: raw.in_reply_to_id || null,
-    blockId: null, // Will be mapped later
+    blockId: null,
+    isOutdated,
+    isResolved: false, // Will be set by fetchSubmittedComments
   };
 }
 
-// Fetch all submitted (visible) review comments
+// Fetch resolved thread IDs via GraphQL
+async function fetchResolvedThreadIds(
+  owner: string,
+  repo: string,
+  prNumber: number
+): Promise<Set<number>> {
+  const client = getOctokit();
+  const resolvedIds = new Set<number>();
+
+  const query = `
+    query($owner: String!, $repo: String!, $prNumber: Int!) {
+      repository(owner: $owner, name: $repo) {
+        pullRequest(number: $prNumber) {
+          reviewThreads(first: 100) {
+            nodes {
+              isResolved
+              comments(first: 1) {
+                nodes {
+                  databaseId
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  try {
+    const response: {
+      repository: {
+        pullRequest: {
+          reviewThreads: {
+            nodes: Array<{
+              isResolved: boolean;
+              comments: { nodes: Array<{ databaseId: number }> };
+            }>;
+          };
+        };
+      };
+    } = await client.graphql(query, { owner, repo, prNumber });
+
+    for (const thread of response.repository.pullRequest.reviewThreads.nodes) {
+      if (thread.isResolved && thread.comments.nodes[0]) {
+        resolvedIds.add(thread.comments.nodes[0].databaseId);
+      }
+    }
+  } catch (e) {
+    console.error('Failed to fetch resolved threads:', e);
+  }
+
+  return resolvedIds;
+}
+
+// Fetch all submitted review comments from GitHub
 export async function fetchSubmittedComments(
   owner: string,
   repo: string,
@@ -172,75 +232,33 @@ export async function fetchSubmittedComments(
 ): Promise<GitHubComment[]> {
   const client = getOctokit();
 
-  const { data } = await client.pulls.listReviewComments({
-    owner,
-    repo,
-    pull_number: prNumber,
-    per_page: 100,
-  });
-
-  return data.map(toGitHubComment);
-}
-
-// Find current user's pending review (if exists)
-export async function fetchMyPendingReview(
-  owner: string,
-  repo: string,
-  prNumber: number
-): Promise<PendingReview | null> {
-  const client = getOctokit();
-  const user = await getCurrentUser();
-
-  const { data: reviews } = await client.pulls.listReviews({
-    owner,
-    repo,
-    pull_number: prNumber,
-    per_page: 100,
-  });
-
-  const pendingReview = reviews.find(
-    (r) => r.state === 'PENDING' && r.user?.login === user.login
-  );
-
-  if (!pendingReview) return null;
-
-  return {
-    id: pendingReview.id,
-    state: 'PENDING',
-    user: user.login,
-  };
-}
-
-// Fetch comments from a pending review
-export async function fetchPendingComments(
-  owner: string,
-  repo: string,
-  prNumber: number,
-  reviewId: number
-): Promise<GitHubComment[]> {
-  const client = getOctokit();
-
-  // GitHub API: GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews/{review_id}/comments
-  const { data } = await client.request(
-    'GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews/{review_id}/comments',
-    {
+  const [{ data }, resolvedIds] = await Promise.all([
+    client.pulls.listReviewComments({
       owner,
       repo,
       pull_number: prNumber,
-      review_id: reviewId,
       per_page: 100,
-    }
-  );
+    }),
+    fetchResolvedThreadIds(owner, repo, prNumber),
+  ]);
 
-  return data.map(toGitHubComment);
+  return data.map((c) => {
+    const comment = toGitHubComment(c);
+    // Mark as resolved if this comment's thread is resolved
+    // Check both the comment ID and its in_reply_to_id (for replies in resolved threads)
+    const rootId = c.in_reply_to_id || c.id;
+    if (resolvedIds.has(rootId)) {
+      comment.isResolved = true;
+    }
+    return comment;
+  });
 }
 
 // Group comments into threads (root + replies)
-function groupIntoThreads(comments: GitHubComment[], isPending: boolean): CommentThread[] {
+function groupIntoThreads(comments: GitHubComment[]): CommentThread[] {
   const threadMap = new Map<number, CommentThread>();
   const replyMap = new Map<number, GitHubComment[]>();
 
-  // First pass: identify root comments and collect replies
   for (const comment of comments) {
     if (comment.inReplyToId) {
       const replies = replyMap.get(comment.inReplyToId) || [];
@@ -253,16 +271,16 @@ function groupIntoThreads(comments: GitHubComment[], isPending: boolean): Commen
         line: comment.line,
         blockId: comment.blockId,
         comments: [comment],
-        isPending,
+        isPending: false,
+        isOutdated: comment.isOutdated,
+        isResolved: comment.isResolved,
       });
     }
   }
 
-  // Second pass: attach replies to their threads
   for (const [rootId, replies] of replyMap) {
     const thread = threadMap.get(rootId);
     if (thread) {
-      // Sort replies by date
       replies.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
       thread.comments.push(...replies);
     }
@@ -271,95 +289,75 @@ function groupIntoThreads(comments: GitHubComment[], isPending: boolean): Commen
   return Array.from(threadMap.values());
 }
 
-// Fetch all comments (submitted + pending) for a PR
-export async function fetchAllComments(
+// Fetch submitted comments and return as threads
+export async function fetchCommentThreads(
   owner: string,
   repo: string,
   prNumber: number
-): Promise<PRComments> {
-  // Fetch submitted comments
-  const submittedComments = await fetchSubmittedComments(owner, repo, prNumber);
-  const submittedThreads = groupIntoThreads(submittedComments, false);
-
-  // Check for pending review
-  const pendingReview = await fetchMyPendingReview(owner, repo, prNumber);
-
-  let pendingThreads: CommentThread[] = [];
-  if (pendingReview) {
-    const pendingComments = await fetchPendingComments(owner, repo, prNumber, pendingReview.id);
-    pendingThreads = groupIntoThreads(pendingComments, true);
-  }
-
-  return {
-    submitted: submittedThreads,
-    pending: pendingThreads,
-    pendingReview,
-  };
+): Promise<CommentThread[]> {
+  const comments = await fetchSubmittedComments(owner, repo, prNumber);
+  return groupIntoThreads(comments);
 }
 
 // ===========================================
-// CREATE/MANAGE COMMENTS
+// PUBLISH COMMENTS (Local -> GitHub)
 // ===========================================
 
-// Get or create a pending review
-export async function getOrCreatePendingReview(
-  owner: string,
-  repo: string,
-  prNumber: number
-): Promise<PendingReview> {
-  // Check if we already have a pending review
-  const existing = await fetchMyPendingReview(owner, repo, prNumber);
-  if (existing) return existing;
-
-  // Create a new pending review
-  const client = getOctokit();
-  const user = await getCurrentUser();
-
-  const { data } = await client.pulls.createReview({
-    owner,
-    repo,
-    pull_number: prNumber,
-    // Don't submit, just create as pending
-  });
-
-  return {
-    id: data.id,
-    state: 'PENDING',
-    user: user.login,
-  };
-}
-
-// Add a comment to the pending review
-export async function addPendingComment(
+// Publish all local pending comments as a single review
+export async function publishReview(
   owner: string,
   repo: string,
   prNumber: number,
   commitSha: string,
-  path: string,
-  line: number,
-  body: string
-): Promise<GitHubComment> {
+  comments: LocalPendingComment[],
+  event: ReviewEvent,
+  body?: string
+): Promise<void> {
   const client = getOctokit();
 
-  // Ensure we have a pending review
-  await getOrCreatePendingReview(owner, repo, prNumber);
+  if (comments.length === 0 && !body) {
+    throw new Error('Nothing to publish');
+  }
 
-  // Add comment to the PR (it will automatically attach to pending review)
-  const { data } = await client.pulls.createReviewComment({
-    owner,
-    repo,
-    pull_number: prNumber,
-    commit_id: commitSha,
-    path,
-    line,
-    body,
-    side: 'RIGHT', // Comment on the new version
-  });
+  // Separate new comments from replies to existing threads
+  const newComments = comments.filter((c) => !c.replyToThreadId);
+  const replies = comments.filter((c) => c.replyToThreadId);
 
-  return toGitHubComment(data);
+  // Only create a review if there are new comments or a body
+  if (newComments.length > 0 || body) {
+    await client.pulls.createReview({
+      owner,
+      repo,
+      pull_number: prNumber,
+      commit_id: commitSha,
+      event,
+      body: body || '',
+      comments: newComments.map((c) => ({
+        path: c.path,
+        line: c.line,
+        body: c.body,
+        side: 'RIGHT' as const,
+      })),
+    });
+  }
+
+  // Publish replies to existing threads separately
+  for (const reply of replies) {
+    await client.pulls.createReplyForReviewComment({
+      owner,
+      repo,
+      pull_number: prNumber,
+      comment_id: reply.replyToThreadId!,
+      body: reply.body,
+    });
+  }
 }
 
-// Reply to an existing comment
+// ===========================================
+// REPLY TO COMMENTS
+// ===========================================
+
+// Reply to an existing comment thread (immediately published)
 export async function replyToComment(
   owner: string,
   repo: string,
@@ -378,57 +376,4 @@ export async function replyToComment(
   });
 
   return toGitHubComment(data);
-}
-
-// Delete a pending comment
-export async function deletePendingComment(
-  owner: string,
-  repo: string,
-  commentId: number
-): Promise<void> {
-  const client = getOctokit();
-
-  await client.pulls.deleteReviewComment({
-    owner,
-    repo,
-    comment_id: commentId,
-  });
-}
-
-// Submit the pending review
-export async function submitReview(
-  owner: string,
-  repo: string,
-  prNumber: number,
-  reviewId: number,
-  event: ReviewEvent,
-  body?: string
-): Promise<void> {
-  const client = getOctokit();
-
-  await client.pulls.submitReview({
-    owner,
-    repo,
-    pull_number: prNumber,
-    review_id: reviewId,
-    event,
-    body: body || '',
-  });
-}
-
-// Delete a pending review (discards all pending comments)
-export async function deletePendingReview(
-  owner: string,
-  repo: string,
-  prNumber: number,
-  reviewId: number
-): Promise<void> {
-  const client = getOctokit();
-
-  await client.pulls.deletePendingReview({
-    owner,
-    repo,
-    pull_number: prNumber,
-    review_id: reviewId,
-  });
 }

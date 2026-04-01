@@ -17,6 +17,7 @@ interface RecentPR {
   url: string;
   repo: string;
   number: number;
+  title?: string;
   addedAt: number;
 }
 
@@ -48,6 +49,16 @@ function removeRecentPR(url: string): RecentPR[] {
   const updated = getRecentPRs().filter((pr) => pr.url !== url);
   localStorage.setItem(RECENT_PRS_KEY, JSON.stringify(updated));
   return updated;
+}
+
+// Update PR title after loading (exported for use in App.tsx)
+export function updateRecentPRTitle(owner: string, repo: string, number: number, title: string): void {
+  const url = `https://github.com/${owner}/${repo}/pull/${number}`;
+  const recent = getRecentPRs();
+  const updated = recent.map((pr) =>
+    pr.url === url ? { ...pr, title } : pr
+  );
+  localStorage.setItem(RECENT_PRS_KEY, JSON.stringify(updated));
 }
 
 export function PRInput({ onSubmit, isLoading, error }: PRInputProps) {
@@ -174,13 +185,16 @@ export function PRInput({ onSubmit, isLoading, error }: PRInputProps) {
                 onClick={() => !isLoading && hasToken && loadPR(pr.url)}
               >
                 <span className="recent-pr-info">
-                  <span className="recent-pr-repo">{pr.repo}</span>
-                  <span className="recent-pr-number">#{pr.number}</span>
+                  {pr.title && <span className="recent-pr-title">{pr.title}</span>}
+                  <span className="recent-pr-meta">
+                    <span className="recent-pr-repo">{pr.repo}</span>
+                    <span className="recent-pr-number">#{pr.number}</span>
+                  </span>
                 </span>
                 <button
                   className="recent-pr-remove"
                   onClick={(e) => handleRemovePR(e, pr.url)}
-                  title="Remove (e.g., when merged)"
+                  title="Remove"
                 >
                   ×
                 </button>

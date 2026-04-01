@@ -28,6 +28,7 @@ export interface GitHubComment {
   id: number;
   path: string;
   line: number;
+  originalLine: number;
   body: string;
   author: string;
   authorAvatar: string;
@@ -36,13 +37,32 @@ export interface GitHubComment {
   inReplyToId: number | null;
   // Mapped field (not from GitHub API)
   blockId: string | null;
+  // True if the line no longer exists in current version
+  isOutdated: boolean;
+  // True if the thread has been resolved
+  isResolved: boolean;
 }
 
-// Pending review metadata
-export interface PendingReview {
-  id: number;
-  state: 'PENDING';
-  user: string;
+// Local pending comment (not yet published to GitHub)
+export interface LocalPendingComment {
+  id: string; // Local UUID
+  path: string;
+  line: number;
+  blockId: string | null;
+  body: string;
+  createdAt: Date;
+  // If replying to an existing GitHub thread, store context
+  replyToThreadId?: number;
+  // Grouping key - standalone comments use unique id, replies share thread's key
+  groupKey?: string;
+}
+
+// Grouped local comments on the same line (like a thread)
+export interface LocalCommentThread {
+  blockId: string | null;
+  path: string;
+  line: number;
+  comments: LocalPendingComment[];
 }
 
 // Review submission event types
@@ -56,6 +76,8 @@ export interface CommentThread {
   blockId: string | null;
   comments: GitHubComment[]; // First is root, rest are replies
   isPending: boolean;
+  isOutdated: boolean;
+  isResolved: boolean;
 }
 
 // Markdown file with line mapping
@@ -79,9 +101,8 @@ export interface PRInfo {
 
 // Comments state for a PR
 export interface PRComments {
-  submitted: CommentThread[];
-  pending: CommentThread[];
-  pendingReview: PendingReview | null;
+  submitted: CommentThread[];       // From GitHub (already published)
+  localPending: LocalPendingComment[]; // Local drafts (not yet on GitHub)
 }
 
 // Current user info
@@ -95,4 +116,31 @@ export interface NewComment {
   path: string;
   line: number;
   body: string;
+}
+
+// Unified comment item for display (can be GitHub or local)
+export interface UnifiedCommentItem {
+  type: 'github' | 'local';
+  id: string | number;
+  body: string;
+  createdAt: Date;
+  // GitHub-specific
+  author?: string;
+  authorAvatar?: string;
+  githubId?: number; // For replying
+  // Local-specific
+  localId?: string; // For deleting
+}
+
+// Unified thread combining GitHub and local comments on the same line
+export interface UnifiedThread {
+  blockId: string | null;
+  path: string;
+  line: number;
+  items: UnifiedCommentItem[];
+  githubThreadId?: number; // For replying to GitHub thread
+  hasGithub: boolean;
+  hasLocal: boolean;
+  isOutdated: boolean;
+  isResolved: boolean;
 }

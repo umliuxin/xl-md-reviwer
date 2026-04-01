@@ -1,34 +1,90 @@
 import { useState, useEffect, useCallback } from 'react';
-import { PRInput } from './components/PRInput';
+import { PRInput, updateRecentPRTitle } from './components/PRInput';
 import { MarkdownViewer } from './components/MarkdownViewer';
 import { CommentSidebar } from './components/CommentSidebar';
+import { InlineCommentForm } from './components/InlineCommentForm';
 import {
   fetchPRInfo,
-  fetchAllComments,
-  addPendingComment,
-  deletePendingComment,
+  fetchCommentThreads,
+  publishReview,
   replyToComment,
-  submitReview,
 } from './services/github';
 import { buildLineMapping } from './services/lineMapping';
-import type { PRInfo, PRComments, ReviewEvent } from './types';
+import type { PRInfo, PRComments, ReviewEvent, LocalPendingComment } from './types';
 import './App.css';
 
 const emptyComments: PRComments = {
   submitted: [],
-  pending: [],
-  pendingReview: null,
+  localPending: [],
 };
+
+// LocalStorage key for pending comments
+const getLocalStorageKey = (owner: string, repo: string, prNumber: number) =>
+  `pr-comments-${owner}-${repo}-${prNumber}`;
+
+
+// Load local comments from localStorage
+function loadLocalComments(owner: string, repo: string, prNumber: number): LocalPendingComment[] {
+  try {
+    const key = getLocalStorageKey(owner, repo, prNumber);
+    const stored = localStorage.getItem(key);
+    if (!stored) return [];
+    const parsed = JSON.parse(stored);
+    // Restore Date objects
+    return parsed.map((c: LocalPendingComment) => ({
+      ...c,
+      createdAt: new Date(c.createdAt),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// Save local comments to localStorage
+function saveLocalComments(owner: string, repo: string, prNumber: number, comments: LocalPendingComment[]) {
+  const key = getLocalStorageKey(owner, repo, prNumber);
+  localStorage.setItem(key, JSON.stringify(comments));
+}
+
+// Parse PR info from URL hash (format: #owner/repo/123)
+function parsePRFromHash(): { owner: string; repo: string; number: number } | null {
+  const hash = window.location.hash.slice(1); // Remove #
+  if (!hash) return null;
+  const match = hash.match(/^([^/]+)\/([^/]+)\/(\d+)$/);
+  if (!match) return null;
+  return { owner: match[1], repo: match[2], number: parseInt(match[3], 10) };
+}
+
+// Update URL hash with PR info
+function updateHash(owner: string, repo: string, prNumber: number) {
+  window.location.hash = `${owner}/${repo}/${prNumber}`;
+}
+
+// Clear URL hash
+function clearHash() {
+  history.pushState('', document.title, window.location.pathname + window.location.search);
+}
 
 function App() {
   const [prInfo, setPrInfo] = useState<PRInfo | null>(null);
   const [comments, setComments] = useState<PRComments>(emptyComments);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedFileIndex, setSelectedFileIndex] = useState(0);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const [showInlineForm, setShowInlineForm] = useState(false);
   const [lineMapping, setLineMapping] = useState<Map<number, string> | null>(null);
   const [blockToLine, setBlockToLine] = useState<Map<string, number> | null>(null);
+
+  // Auto-load PR from URL hash on mount
+  useEffect(() => {
+    const prFromHash = parsePRFromHash();
+    if (prFromHash) {
+      handleLoadPR(prFromHash.owner, prFromHash.repo, prFromHash.number);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Build line mapping when file changes
   useEffect(() => {
@@ -40,25 +96,30 @@ function App() {
     }
   }, [prInfo, selectedFileIndex]);
 
-  // Apply line mapping to comments
+  // Persist local comments to localStorage
+  useEffect(() => {
+    if (prInfo && comments.localPending.length >= 0) {
+      saveLocalComments(prInfo.owner, prInfo.repo, prInfo.number, comments.localPending);
+    }
+  }, [prInfo, comments.localPending]);
+
+
+  // Apply line mapping to submitted comments
   const mappedComments: PRComments = {
     ...comments,
-    submitted: comments.submitted.map((thread) => {
-      const blockId = lineMapping?.get(thread.line) || null;
-      console.log(`[App] Comment thread ${thread.id}: line ${thread.line} -> blockId ${blockId}`);
-      return { ...thread, blockId };
-    }),
-    pending: comments.pending.map((thread) => {
-      const blockId = lineMapping?.get(thread.line) || null;
-      console.log(`[App] Pending thread ${thread.id}: line ${thread.line} -> blockId ${blockId}`);
-      return { ...thread, blockId };
-    }),
+    submitted: comments.submitted.map((thread) => ({
+      ...thread,
+      blockId: lineMapping?.get(thread.line) || null,
+    })),
   };
 
-  const loadComments = useCallback(async (owner: string, repo: string, prNumber: number) => {
+  const loadSubmittedComments = useCallback(async (owner: string, repo: string, prNumber: number) => {
     try {
-      const allComments = await fetchAllComments(owner, repo, prNumber);
-      setComments(allComments);
+      const threads = await fetchCommentThreads(owner, repo, prNumber);
+      setComments((prev) => ({
+        ...prev,
+        submitted: threads,
+      }));
     } catch (e) {
       console.error('Failed to load comments:', e);
     }
@@ -79,8 +140,19 @@ function App() {
       setSelectedFileIndex(0);
       setSelectedBlockId(null);
 
-      // Load comments
-      await loadComments(owner, repo, prNumber);
+      // Update URL hash and save title to recent PRs
+      updateHash(owner, repo, prNumber);
+      updateRecentPRTitle(owner, repo, prNumber, info.title);
+
+      // Load local comments from localStorage
+      const localComments = loadLocalComments(owner, repo, prNumber);
+      setComments((prev) => ({
+        ...prev,
+        localPending: localComments,
+      }));
+
+      // Load submitted comments from GitHub
+      await loadSubmittedComments(owner, repo, prNumber);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load PR');
     } finally {
@@ -88,10 +160,7 @@ function App() {
     }
   };
 
-  const handleBlockSelect = (blockId: string) => {
-    setSelectedBlockId(blockId);
-  };
-
+  // Add a local pending comment (stored in state, not GitHub)
   const handleAddComment = async (blockId: string, body: string) => {
     if (!prInfo || !blockToLine) return;
 
@@ -103,60 +172,110 @@ function App() {
 
     const currentFile = prInfo.files[selectedFileIndex];
 
-    await addPendingComment(
-      prInfo.owner,
-      prInfo.repo,
-      prInfo.number,
-      prInfo.headSha,
-      currentFile.path,
+    const commentId = crypto.randomUUID();
+    const newComment: LocalPendingComment = {
+      id: commentId,
+      path: currentFile.path,
       line,
-      body
-    );
+      blockId,
+      body,
+      createdAt: new Date(),
+      // Standalone comment - use unique key so it doesn't group with others
+      groupKey: `standalone-${commentId}`,
+    };
 
-    // Refresh comments
-    await loadComments(prInfo.owner, prInfo.repo, prInfo.number);
+    setComments((prev) => ({
+      ...prev,
+      localPending: [...prev.localPending, newComment],
+    }));
   };
 
-  const handleDeleteComment = async (commentId: number) => {
-    if (!prInfo) return;
-
-    await deletePendingComment(prInfo.owner, prInfo.repo, commentId);
-
-    // Refresh comments
-    await loadComments(prInfo.owner, prInfo.repo, prInfo.number);
+  // Delete a local pending comment
+  const handleDeleteLocalComment = (commentId: string) => {
+    setComments((prev) => ({
+      ...prev,
+      localPending: prev.localPending.filter((c) => c.id !== commentId),
+    }));
   };
 
-  const handleReplyToComment = async (commentId: number, body: string) => {
+  // Reply immediately (posts to GitHub right away)
+  const handleReplyImmediate = async (commentId: number, body: string) => {
     if (!prInfo) return;
 
     await replyToComment(prInfo.owner, prInfo.repo, prInfo.number, commentId, body);
 
-    // Refresh comments
-    await loadComments(prInfo.owner, prInfo.repo, prInfo.number);
+    // Refresh submitted comments
+    await loadSubmittedComments(prInfo.owner, prInfo.repo, prInfo.number);
   };
 
-  const handlePublishReview = async (event: ReviewEvent, body?: string) => {
-    if (!prInfo || !comments.pendingReview) return;
+  // Add reply to local review (will be published with batch)
+  const handleReplyToReview = (thread: { path: string; line: number; blockId: string | null; id: number }, body: string) => {
+    const newComment: LocalPendingComment = {
+      id: crypto.randomUUID(),
+      path: thread.path,
+      line: thread.line,
+      blockId: thread.blockId,
+      body,
+      createdAt: new Date(),
+      replyToThreadId: thread.id,
+      // Reply - use thread's blockId as groupKey so it groups with the thread
+      groupKey: thread.blockId || `line-${thread.line}`,
+    };
 
-    await submitReview(
+    setComments((prev) => ({
+      ...prev,
+      localPending: [...prev.localPending, newComment],
+    }));
+  };
+
+  // Publish all local pending comments to GitHub
+  const handlePublishReview = async (event: ReviewEvent, body?: string) => {
+    if (!prInfo || comments.localPending.length === 0) return;
+
+    await publishReview(
       prInfo.owner,
       prInfo.repo,
       prInfo.number,
-      comments.pendingReview.id,
+      prInfo.headSha,
+      comments.localPending,
       event,
       body
     );
 
-    // Refresh comments
-    await loadComments(prInfo.owner, prInfo.repo, prInfo.number);
+    // Clear local pending comments
+    setComments((prev) => ({
+      ...prev,
+      localPending: [],
+    }));
+
+    // Refresh submitted comments from GitHub
+    await loadSubmittedComments(prInfo.owner, prInfo.repo, prInfo.number);
   };
 
   const handleBack = () => {
     setPrInfo(null);
     setComments(emptyComments);
     setSelectedBlockId(null);
+    setShowInlineForm(false);
     setLineMapping(null);
     setBlockToLine(null);
+    clearHash();
+  };
+
+  // Sync with GitHub
+  const handleSync = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!prInfo || isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      const info = await fetchPRInfo(prInfo.owner, prInfo.repo, prInfo.number);
+      setPrInfo(info);
+      await loadSubmittedComments(prInfo.owner, prInfo.repo, prInfo.number);
+    } catch (e) {
+      console.error('Failed to sync:', e);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   if (!prInfo) {
@@ -172,27 +291,45 @@ function App() {
           ← Back
         </button>
         <div className="pr-info">
-          <span className="pr-title">{prInfo.title}</span>
+          <a
+            className="pr-title"
+            href={`https://github.com/${prInfo.owner}/${prInfo.repo}/pull/${prInfo.number}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {prInfo.title}
+          </a>
           <span className="pr-meta">
             {prInfo.owner}/{prInfo.repo} #{prInfo.number}
           </span>
         </div>
-        {prInfo.files.length > 1 && (
-          <select
-            className="file-selector"
-            value={selectedFileIndex}
-            onChange={(e) => {
-              setSelectedFileIndex(Number(e.target.value));
-              setSelectedBlockId(null);
-            }}
+        <div className="header-actions">
+          {prInfo.files.length > 1 && (
+            <select
+              className="file-selector"
+              value={selectedFileIndex}
+              onChange={(e) => {
+                setSelectedFileIndex(Number(e.target.value));
+                setSelectedBlockId(null);
+                setShowInlineForm(false);
+              }}
+            >
+              {prInfo.files.map((file, index) => (
+                <option key={file.path} value={index}>
+                  {file.path}
+                </option>
+              ))}
+            </select>
+          )}
+          <button
+            type="button"
+            className="sync-btn"
+            onClick={handleSync}
+            disabled={isRefreshing}
           >
-            {prInfo.files.map((file, index) => (
-              <option key={file.path} value={index}>
-                {file.path}
-              </option>
-            ))}
-          </select>
-        )}
+            {isRefreshing ? 'Syncing...' : 'Sync with GitHub'}
+          </button>
+        </div>
       </header>
 
       <main className="app-main">
@@ -206,12 +343,19 @@ function App() {
               // Toggle: click same block to deselect
               if (blockId === selectedBlockId) {
                 setSelectedBlockId(null);
+                setShowInlineForm(false);
               } else {
-                handleBlockSelect(blockId);
+                setSelectedBlockId(blockId);
+                // Check if this block has any comments
+                const hasLocalComments = mappedComments.localPending.some((c) => c.blockId === blockId);
+                const hasGithubComments = mappedComments.submitted.some((t) => t.blockId === blockId);
+                // Only show inline form if no existing comments
+                setShowInlineForm(!hasLocalComments && !hasGithubComments);
               }
             } else {
               // Click outside any block to deselect
               setSelectedBlockId(null);
+              setShowInlineForm(false);
             }
           }}
         >
@@ -219,16 +363,29 @@ function App() {
             content={currentFile.content}
             filePath={currentFile.path}
             comments={mappedComments}
+            selectedBlockId={selectedBlockId}
+            onOpenCommentForm={() => setShowInlineForm(true)}
           />
+          {showInlineForm && selectedBlockId && (
+            <InlineCommentForm
+              key={selectedBlockId}
+              blockId={selectedBlockId}
+              onSubmit={handleAddComment}
+              onCancel={() => {
+                setShowInlineForm(false);
+              }}
+            />
+          )}
         </div>
         <CommentSidebar
           filePath={currentFile.path}
           comments={mappedComments}
           selectedBlockId={selectedBlockId}
-          onAddComment={handleAddComment}
-          onDeleteComment={handleDeleteComment}
-          onReplyToComment={handleReplyToComment}
+          onDeleteLocalComment={handleDeleteLocalComment}
+          onReplyImmediate={handleReplyImmediate}
+          onReplyToReview={handleReplyToReview}
           onPublishReview={handlePublishReview}
+          onSelectBlock={setSelectedBlockId}
         />
       </main>
     </div>

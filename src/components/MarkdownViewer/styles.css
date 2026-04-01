@@ -183,19 +183,30 @@
 }
 
 .commentable-block.selected {
-  background: #e3f2fd;
-  outline: 2px solid #2196f3;
+  background: #fef3c7;
+  outline: 2px solid #f59e0b;
   outline-offset: 2px;
 }
 
-.commentable-block.has-comments {
-  background: #fff8e1;
+/* Local draft comments - Orange */
+.commentable-block.has-local {
+  background: #fff7ed;
 }
 
-.commentable-block.has-comments:hover {
-  background: #ffecb3;
+.commentable-block.has-local:hover {
+  background: #ffedd5;
 }
 
+/* GitHub comments - Blue */
+.commentable-block.has-github {
+  background: #eff6ff;
+}
+
+.commentable-block.has-github:hover {
+  background: #dbeafe;
+}
+
+/* Comment indicators */
 .comment-indicator {
   position: absolute;
   right: 8px;
@@ -203,12 +214,60 @@
   transform: translateY(-50%);
   width: 20px;
   height: 20px;
-  background: #ffc107;
-  color: #000;
   border-radius: 50%;
   font-size: 12px;
   font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.comment-indicator.local {
+  background: #f97316;
+  color: white;
+}
+
+.comment-indicator.github {
+  background: #3b82f6;
+  color: white;
+}
+
+/* Block actions container */
+.block-actions {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.block-actions .comment-indicator {
+  position: static;
+  transform: none;
+}
+
+/* Add comment button */
+.add-comment-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: #10b981;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  padding: 0;
+}
+
+.add-comment-btn:hover {
+  background: #059669;
+  transform: scale(1.1);
 }

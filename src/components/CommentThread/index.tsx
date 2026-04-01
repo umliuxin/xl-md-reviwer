@@ -5,15 +5,17 @@ import './styles.css';
 interface GitHubCommentThreadProps {
   thread: CommentThread;
   isActive: boolean;
-  onDelete?: (commentId: number) => Promise<void>;
-  onReply: (commentId: number, body: string) => Promise<void>;
+  onReplyImmediate: (commentId: number, body: string) => Promise<void>;
+  onReplyToReview: (thread: CommentThread, body: string) => void;
+  onClick: () => void;
 }
 
 export function GitHubCommentThread({
   thread,
   isActive,
-  onDelete,
-  onReply,
+  onReplyImmediate,
+  onReplyToReview,
+  onClick,
 }: GitHubCommentThreadProps) {
   const [replyText, setReplyText] = useState('');
   const [isReplying, setIsReplying] = useState(false);
@@ -22,12 +24,12 @@ export function GitHubCommentThread({
   const rootComment = thread.comments[0];
   const replies = thread.comments.slice(1);
 
-  const handleReply = async () => {
+  const handleReplyImmediate = async () => {
     if (!replyText.trim()) return;
 
     setIsSubmitting(true);
     try {
-      await onReply(rootComment.id, replyText.trim());
+      await onReplyImmediate(rootComment.id, replyText.trim());
       setReplyText('');
       setIsReplying(false);
     } finally {
@@ -35,10 +37,11 @@ export function GitHubCommentThread({
     }
   };
 
-  const handleDelete = async () => {
-    if (onDelete) {
-      await onDelete(rootComment.id);
-    }
+  const handleAddToReview = () => {
+    if (!replyText.trim()) return;
+    onReplyToReview(thread, replyText.trim());
+    setReplyText('');
+    setIsReplying(false);
   };
 
   const formatDate = (date: Date) => {
@@ -61,7 +64,7 @@ export function GitHubCommentThread({
   };
 
   return (
-    <div className={`comment-thread ${isActive ? 'active' : ''} ${thread.isPending ? 'pending' : ''}`}>
+    <div className={`comment-thread ${isActive ? 'active' : ''}`} onClick={onClick}>
       {/* Root comment */}
       <div className="comment-header">
         <div className="comment-author-section">
@@ -73,7 +76,6 @@ export function GitHubCommentThread({
             />
           )}
           <span className="comment-author">{rootComment.author}</span>
-          {thread.isPending && <span className="draft-tag">Draft</span>}
         </div>
         <div className="comment-meta">
           <span className="comment-date">{formatDate(rootComment.createdAt)}</span>
@@ -117,14 +119,27 @@ export function GitHubCommentThread({
             />
             <div className="reply-buttons">
               <button
-                onClick={handleReply}
+                className="add-to-review"
+                onClick={handleAddToReview}
                 disabled={!replyText.trim() || isSubmitting}
+                title="Add to your local review draft"
               >
-                {isSubmitting ? 'Sending...' : 'Reply'}
+                Add to review
+              </button>
+              <button
+                className="reply-now"
+                onClick={handleReplyImmediate}
+                disabled={!replyText.trim() || isSubmitting}
+                title="Post immediately to GitHub"
+              >
+                {isSubmitting ? 'Posting...' : 'Post now'}
               </button>
               <button
                 className="cancel"
-                onClick={() => setIsReplying(false)}
+                onClick={() => {
+                  setIsReplying(false);
+                  setReplyText('');
+                }}
                 disabled={isSubmitting}
               >
                 Cancel
@@ -132,16 +147,9 @@ export function GitHubCommentThread({
             </div>
           </div>
         ) : (
-          <>
-            <button className="action-btn" onClick={() => setIsReplying(true)}>
-              Reply
-            </button>
-            {thread.isPending && onDelete && (
-              <button className="action-btn delete" onClick={handleDelete}>
-                Delete
-              </button>
-            )}
-          </>
+          <button className="action-btn" onClick={() => setIsReplying(true)}>
+            Reply
+          </button>
         )}
       </div>
     </div>

@@ -9,22 +9,19 @@ interface MarkdownViewerProps {
   content: string;
   filePath: string;
   comments: PRComments;
+  selectedBlockId: string | null;
+  onOpenCommentForm: () => void;
 }
 
-export function MarkdownViewer({ content, filePath, comments }: MarkdownViewerProps) {
+export function MarkdownViewer({ content, filePath, comments, selectedBlockId, onOpenCommentForm }: MarkdownViewerProps) {
   // Use line number as block identifier
   const getBlockId = (line: number) => `${filePath}-line-${line}`;
 
-  // Count comments for a block (both submitted and pending)
-  const getBlockCommentCount = (blockId: string) => {
-    const submitted = comments.submitted.filter((t) => t.blockId === blockId).length;
-    const pending = comments.pending.filter((t) => t.blockId === blockId).length;
-    return submitted + pending;
-  };
-
-  // Check if block has pending comments (for different styling)
-  const hasPendingComments = (blockId: string) => {
-    return comments.pending.some((t) => t.blockId === blockId);
+  // Count comments for a block (exclude outdated and resolved)
+  const getCommentCounts = (blockId: string) => {
+    const github = comments.submitted.filter((t) => t.blockId === blockId && !t.isOutdated && !t.isResolved).length;
+    const local = comments.localPending.filter((c) => c.blockId === blockId).length;
+    return { github, local, total: github + local };
   };
 
   const createBlockComponent = (
@@ -41,20 +38,38 @@ export function MarkdownViewer({ content, filePath, comments }: MarkdownViewerPr
     }
 
     const blockId = getBlockId(startLine);
-    const commentCount = getBlockCommentCount(blockId);
-    const hasPending = hasPendingComments(blockId);
+    const counts = getCommentCounts(blockId);
+
+    // Determine styling: local takes precedence (orange), then github (blue)
+    const hasLocal = counts.local > 0;
+    const hasGithub = counts.github > 0;
+    const isSelected = blockId === selectedBlockId;
 
     return (
       <Tag
-        className={`commentable-block ${extraClass} ${commentCount > 0 ? 'has-comments' : ''} ${hasPending ? 'has-pending' : ''}`}
+        className={`commentable-block ${extraClass} ${isSelected ? 'selected' : ''} ${hasLocal ? 'has-local' : ''} ${hasGithub && !hasLocal ? 'has-github' : ''}`}
         data-block-id={blockId}
       >
         {children}
-        {commentCount > 0 && (
-          <span className={`comment-indicator ${hasPending ? 'pending' : ''}`}>
-            {commentCount}
-          </span>
-        )}
+        <span className="block-actions">
+          {counts.total > 0 && (
+            <span className={`comment-indicator ${hasLocal ? 'local' : 'github'}`}>
+              {counts.total}
+            </span>
+          )}
+          {isSelected && (
+            <button
+              className="add-comment-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenCommentForm();
+              }}
+              title="Add comment"
+            >
+              +
+            </button>
+          )}
+        </span>
       </Tag>
     );
   };

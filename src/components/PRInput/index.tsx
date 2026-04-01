@@ -162,7 +162,7 @@ export function PRInput({ onSubmit, isLoading, error }: PRInputProps) {
           type="text"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          placeholder="Paste GitHub PR URL (e.g., https://github.com/linkedin-multiproduct/repo/pull/123)"
+          placeholder="Paste GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)"
           className={`pr-input ${!isValidUrl ? 'invalid' : ''}`}
           disabled={isLoading || !hasToken}
         />

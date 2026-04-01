@@ -76,6 +76,9 @@
   padding: 12px 20px;
   background: white;
   border-bottom: 1px solid #e1e4e8;
+  position: sticky;
+  top: 49px;
+  z-index: 90;
 }
 
 .file-item {

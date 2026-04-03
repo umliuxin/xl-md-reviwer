@@ -8,6 +8,7 @@ import {
   fetchCommentThreads,
   publishReview,
   replyToComment,
+  parsePRUrl,
 } from './services/github';
 import { buildLineMapping } from './services/lineMapping';
 import type { PRInfo, PRComments, ReviewEvent, LocalPendingComment } from './types';
@@ -46,9 +47,18 @@ function saveLocalComments(owner: string, repo: string, prNumber: number, commen
   localStorage.setItem(key, JSON.stringify(comments));
 }
 
-// Parse PR info from URL hash (format: #owner/repo/123)
-function parsePRFromHash(): { owner: string; repo: string; number: number } | null {
-  const hash = window.location.hash.slice(1); // Remove #
+// Parse PR info from URL (checks ?pr= query param first, then hash)
+function parsePRFromUrl(): { owner: string; repo: string; number: number } | null {
+  // Check for ?pr= query parameter first
+  const params = new URLSearchParams(window.location.search);
+  const prParam = params.get('pr');
+  if (prParam) {
+    const parsed = parsePRUrl(prParam);
+    if (parsed) return parsed;
+  }
+
+  // Fall back to hash format (#owner/repo/123)
+  const hash = window.location.hash.slice(1);
   if (!hash) return null;
   const match = hash.match(/^([^/]+)\/([^/]+)\/(\d+)$/);
   if (!match) return null;
@@ -60,16 +70,16 @@ function updateHash(owner: string, repo: string, prNumber: number) {
   window.location.hash = `${owner}/${repo}/${prNumber}`;
 }
 
-// Clear URL hash
-function clearHash() {
-  history.pushState('', document.title, window.location.pathname + window.location.search);
+// Clear URL (hash and query params)
+function clearUrl() {
+  history.pushState('', document.title, window.location.pathname);
 }
 
 function App() {
   const [prInfo, setPrInfo] = useState<PRInfo | null>(null);
   const [comments, setComments] = useState<PRComments>(emptyComments);
   // Start loading if URL has a PR hash
-  const [isLoading, setIsLoading] = useState(() => parsePRFromHash() !== null);
+  const [isLoading, setIsLoading] = useState(() => parsePRFromUrl() !== null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedFileIndex, setSelectedFileIndex] = useState(0);
@@ -80,7 +90,7 @@ function App() {
 
   // Auto-load PR from URL hash on mount
   useEffect(() => {
-    const prFromHash = parsePRFromHash();
+    const prFromHash = parsePRFromUrl();
     if (prFromHash) {
       handleLoadPR(prFromHash.owner, prFromHash.repo, prFromHash.number);
     }
@@ -269,7 +279,7 @@ function App() {
     setShowInlineForm(false);
     setLineMapping(null);
     setBlockToLine(null);
-    clearHash();
+    clearUrl();
   };
 
   // Sync with GitHub

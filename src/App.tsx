@@ -65,9 +65,10 @@ function parsePRFromUrl(): { owner: string; repo: string; number: number } | nul
   return { owner: match[1], repo: match[2], number: parseInt(match[3], 10) };
 }
 
-// Update URL hash with PR info
+// Update URL hash with PR info (also clears query params)
 function updateHash(owner: string, repo: string, prNumber: number) {
-  window.location.hash = `${owner}/${repo}/${prNumber}`;
+  const newUrl = `${window.location.pathname}#${owner}/${repo}/${prNumber}`;
+  history.replaceState(null, '', newUrl);
 }
 
 // Clear URL (hash and query params)

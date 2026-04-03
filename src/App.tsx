@@ -299,19 +299,24 @@ function App() {
   };
 
   if (!prInfo) {
-    // Show loading screen with tips when loading from URL
+    // Show loading screen with a rotating tip
     if (isLoading) {
+      const tips = [
+        <>Share a direct link using <code>?pr=https://github.com/.../pull/123</code></>,
+        'Click any paragraph or heading to add a comment',
+        'Your draft comments are saved locally until you publish',
+        'Use "Add to review" to batch multiple comments before publishing',
+        'Click "Sync with GitHub" to fetch the latest comments from others',
+        'This tool only shows markdown files — review code changes in GitHub',
+      ];
+      const tipIndex = Math.floor(Date.now() / 1000) % tips.length;
+
       return (
         <div className="loading-screen">
           <p className="loading-text">Loading PR...</p>
           <div className="did-you-know">
             <strong>Did you know?</strong>
-            <ul>
-              <li>You can share a direct link using <code>?pr=https://github.com/.../pull/123</code></li>
-              <li>Click any paragraph or heading to add a comment</li>
-              <li>Your draft comments are saved locally until you publish</li>
-              <li>Use "Add to review" to batch multiple comments before publishing</li>
-            </ul>
+            <p>{tips[tipIndex]}</p>
           </div>
         </div>
       );

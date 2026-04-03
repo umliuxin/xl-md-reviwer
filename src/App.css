@@ -29,25 +29,16 @@
 
 .did-you-know strong {
   display: block;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   color: #24292f;
   font-size: 14px;
 }
 
-.did-you-know ul {
+.did-you-know p {
   margin: 0;
-  padding-left: 20px;
-}
-
-.did-you-know li {
   font-size: 13px;
   color: #666;
-  margin-bottom: 8px;
   line-height: 1.5;
-}
-
-.did-you-know li:last-child {
-  margin-bottom: 0;
 }
 
 .did-you-know code {

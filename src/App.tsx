@@ -299,11 +299,20 @@ function App() {
   };
 
   if (!prInfo) {
-    // Show simple loading screen when loading from URL hash
+    // Show loading screen with tips when loading from URL
     if (isLoading) {
       return (
         <div className="loading-screen">
-          <p>Loading PR...</p>
+          <p className="loading-text">Loading PR...</p>
+          <div className="did-you-know">
+            <strong>Did you know?</strong>
+            <ul>
+              <li>You can share a direct link using <code>?pr=https://github.com/.../pull/123</code></li>
+              <li>Click any paragraph or heading to add a comment</li>
+              <li>Your draft comments are saved locally until you publish</li>
+              <li>Use "Add to review" to batch multiple comments before publishing</li>
+            </ul>
+          </div>
         </div>
       );
     }

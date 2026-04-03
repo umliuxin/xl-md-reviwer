@@ -65,9 +65,8 @@ export function PRInput({ onSubmit, isLoading, error }: PRInputProps) {
   const [url, setUrl] = useState('');
   const [token, setToken] = useState('');
   const [hasToken, setHasToken] = useState(false);
-  const [showTokenInput, setShowTokenInput] = useState(false);
   const [recentPRs, setRecentPRs] = useState<RecentPR[]>([]);
-  const [showTutorial, setShowTutorial] = useState(() => !getStoredToken());
+  const [showTutorial, setShowTutorial] = useState(false);
 
   useEffect(() => {
     const storedToken = getStoredToken();
@@ -101,7 +100,6 @@ export function PRInput({ onSubmit, isLoading, error }: PRInputProps) {
     if (token.trim()) {
       setGitHubToken(token.trim());
       setHasToken(true);
-      setShowTokenInput(false);
       setToken('');
     }
   };
@@ -113,51 +111,66 @@ export function PRInput({ onSubmit, isLoading, error }: PRInputProps) {
 
   const isValidUrl = url === '' || parsePRUrl(url) !== null;
 
+  // Show setup guide when no token is configured
+  if (!hasToken) {
+    return (
+      <div className="pr-input-container">
+        <h1>MD Viewer</h1>
+        <p className="subtitle">Review markdown files from GitHub PRs with inline comments.</p>
+
+        <div className="setup-guide">
+          <h2>Get Started</h2>
+          <p>To use this tool, you need a GitHub personal access token.</p>
+
+          <div className="setup-steps">
+            <div className="setup-step">
+              <span className="step-number">1</span>
+              <div className="step-content">
+                <strong>Get your token</strong>
+                <p>Run this command in your terminal:</p>
+                <code className="code-block">gh auth token</code>
+                <p className="step-hint">Don't have GitHub CLI? <a href="https://cli.github.com/" target="_blank" rel="noopener noreferrer">Install it here</a> or <a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer">create a token manually</a></p>
+              </div>
+            </div>
+
+            <div className="setup-step">
+              <span className="step-number">2</span>
+              <div className="step-content">
+                <strong>Paste your token below</strong>
+                <div className="token-input-row">
+                  <input
+                    type="password"
+                    value={token}
+                    onChange={(e) => setToken(e.target.value)}
+                    placeholder="Paste your GitHub token"
+                    className="token-input"
+                    autoFocus
+                  />
+                  <button onClick={handleSaveToken} disabled={!token.trim()}>
+                    Save Token
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="pr-input-container">
       <h1>MD Viewer</h1>
       <p className="subtitle">Review markdown files from GitHub PRs with inline comments. For code changes, use GitHub's UI.</p>
 
       <div className="token-status">
-        {hasToken ? (
-          <div className="token-configured">
-            <span className="token-badge">✓ GitHub token configured</span>
-            <button className="token-clear-btn" onClick={handleClearToken}>
-              Clear
-            </button>
-          </div>
-        ) : (
-          <div className="token-missing">
-            <span className="token-warning">⚠ GitHub token required for private repos</span>
-            <button className="token-add-btn" onClick={() => setShowTokenInput(true)}>
-              Add Token
-            </button>
-          </div>
-        )}
-      </div>
-
-      {showTokenInput && (
-        <div className="token-form">
-          <p className="token-hint">
-            Get your token by running: <code>gh auth token</code>
-          </p>
-          <div className="token-input-row">
-            <input
-              type="password"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              placeholder="Paste your GitHub token"
-              className="token-input"
-            />
-            <button onClick={handleSaveToken} disabled={!token.trim()}>
-              Save
-            </button>
-            <button className="cancel" onClick={() => setShowTokenInput(false)}>
-              Cancel
-            </button>
-          </div>
+        <div className="token-configured">
+          <span className="token-badge">✓ GitHub token configured</span>
+          <button className="token-clear-btn" onClick={handleClearToken}>
+            Clear
+          </button>
         </div>
-      )}
+      </div>
 
       <form onSubmit={handleSubmit} className="pr-input-form">
         <input
@@ -166,9 +179,9 @@ export function PRInput({ onSubmit, isLoading, error }: PRInputProps) {
           onChange={(e) => setUrl(e.target.value)}
           placeholder="Paste GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)"
           className={`pr-input ${!isValidUrl ? 'invalid' : ''}`}
-          disabled={isLoading || !hasToken}
+          disabled={isLoading}
         />
-        <button type="submit" disabled={!parsePRUrl(url) || isLoading || !hasToken}>
+        <button type="submit" disabled={!parsePRUrl(url) || isLoading}>
           {isLoading ? 'Loading...' : 'Load PR'}
         </button>
       </form>
@@ -184,7 +197,7 @@ export function PRInput({ onSubmit, isLoading, error }: PRInputProps) {
               <li
                 key={pr.url}
                 className="recent-pr-item"
-                onClick={() => !isLoading && hasToken && loadPR(pr.url)}
+                onClick={() => !isLoading && loadPR(pr.url)}
               >
                 <span className="recent-pr-info">
                   {pr.title && <span className="recent-pr-title">{pr.title}</span>}
@@ -218,7 +231,6 @@ export function PRInput({ onSubmit, isLoading, error }: PRInputProps) {
         {showTutorial && (
           <div className="tutorial-content">
             <ol>
-              <li><strong>Add your GitHub token</strong> - Run <code>gh auth token</code> in terminal and paste it above</li>
               <li><strong>Load a PR</strong> - Paste any GitHub PR URL and click "Load PR"</li>
               <li><strong>Add comments</strong> - Click on any paragraph, heading, or list item to add a comment</li>
               <li><strong>Reply to threads</strong> - Use "Add to review" to batch replies, or "Post now" for immediate</li>

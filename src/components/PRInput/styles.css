@@ -71,6 +71,88 @@
   color: white;
 }
 
+/* Setup Guide (shown when no token) */
+.setup-guide {
+  text-align: left;
+  margin-top: 32px;
+}
+
+.setup-guide h2 {
+  font-size: 1.25rem;
+  margin-bottom: 8px;
+  color: #24292f;
+}
+
+.setup-guide > p {
+  color: #666;
+  margin-bottom: 24px;
+}
+
+.setup-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.setup-step {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.step-number {
+  width: 32px;
+  height: 32px;
+  background: #0366d6;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.step-content {
+  flex: 1;
+}
+
+.step-content strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #24292f;
+}
+
+.step-content p {
+  margin: 8px 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.step-content .code-block {
+  display: block;
+  background: #24292f;
+  color: #79b8ff;
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 14px;
+  margin: 8px 0;
+}
+
+.step-hint {
+  font-size: 13px !important;
+  color: #888 !important;
+}
+
+.step-hint a {
+  color: #0366d6;
+}
+
+.step-content .token-input-row {
+  margin-top: 8px;
+}
+
 /* Token Form */
 .token-form {
   background: #f8f9fa;

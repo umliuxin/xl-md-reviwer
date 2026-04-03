@@ -12,6 +12,13 @@
 - [x] PR titles in recent PRs list
 - [x] Inline comment form with portal positioning
 - [x] GitHub Pages deployment
+- [x] Fix cross-file comment bug (comments from other files no longer show phantom indicators)
+- [x] Markdown-only scope clarification (banner, subtitle, tutorial updates)
+- [x] File selector as horizontal list with sticky scroll
+- [x] Direct PR link via query parameter (`?pr=https://github.com/.../pull/123`)
+- [x] Improved onboarding with step-by-step setup guide when no token
+- [x] "Did you know" rotating tips on loading screen
+- [x] Clean URL after loading (replaces query param with hash format)
 
 ## Pending
 

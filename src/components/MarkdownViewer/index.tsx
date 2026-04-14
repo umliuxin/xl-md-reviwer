@@ -72,7 +72,7 @@ export function MarkdownViewer({ content, filePath, comments, selectedBlockId, o
 
     return (
       <Tag
-        className={`commentable-block changed-block ${extraClass} ${isSelected ? 'selected' : ''} ${hasLocal ? 'has-local' : ''} ${hasGithub && !hasLocal ? 'has-github' : ''}`}
+        className={`commentable-block ${!isNewFile ? 'changed-block' : ''} ${extraClass} ${isSelected ? 'selected' : ''} ${hasLocal ? 'has-local' : ''} ${hasGithub && !hasLocal ? 'has-github' : ''}`}
         data-block-id={blockId}
       >
         {children}

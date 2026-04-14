@@ -169,6 +169,23 @@
   font-weight: 600;
 }
 
+/* Unchanged blocks — readable context but muted and not commentable */
+.unchanged-block {
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+
+.unchanged-block:hover {
+  opacity: 0.75;
+}
+
+/* Changed blocks — accent left border to mark diff */
+.changed-block {
+  border-left: 3px solid #22c55e;
+  padding-left: 12px;
+  margin-left: -15px;
+}
+
 /* Commentable blocks */
 .commentable-block {
   position: relative;

@@ -420,6 +420,8 @@ function App() {
             comments={mappedComments}
             selectedBlockId={selectedBlockId}
             onOpenCommentForm={() => setShowInlineForm(true)}
+            changedLines={currentFile.changedLines}
+            isNewFile={currentFile.fileStatus === 'added'}
           />
           {showInlineForm && selectedBlockId && (
             <InlineCommentForm

@@ -11,11 +11,25 @@ interface MarkdownViewerProps {
   comments: PRComments;
   selectedBlockId: string | null;
   onOpenCommentForm: () => void;
+  /** Lines changed in this PR. Empty set = all lines changed (new file). */
+  changedLines: Set<number>;
+  /** Whether this file is newly added in the PR */
+  isNewFile: boolean;
 }
 
-export function MarkdownViewer({ content, filePath, comments, selectedBlockId, onOpenCommentForm }: MarkdownViewerProps) {
+export function MarkdownViewer({ content, filePath, comments, selectedBlockId, onOpenCommentForm, changedLines, isNewFile }: MarkdownViewerProps) {
   // Use line number as block identifier
   const getBlockId = (line: number) => `${filePath}-line-${line}`;
+
+  // Check if a block (by its start/end line range) overlaps with changed lines
+  // For new files (empty changedLines set), all blocks are considered changed
+  const isBlockChanged = (startLine: number, endLine: number): boolean => {
+    if (isNewFile) return true;
+    for (let line = startLine; line <= endLine; line++) {
+      if (changedLines.has(line)) return true;
+    }
+    return false;
+  };
 
   // Count comments for a block (exclude outdated and resolved)
   const getCommentCounts = (blockId: string) => {
@@ -31,6 +45,7 @@ export function MarkdownViewer({ content, filePath, comments, selectedBlockId, o
   ) => {
     const { children, node } = props;
     const startLine = node?.position?.start?.line;
+    const endLine = node?.position?.end?.line;
 
     if (!startLine) {
       // No position info, render without block ID
@@ -38,16 +53,26 @@ export function MarkdownViewer({ content, filePath, comments, selectedBlockId, o
     }
 
     const blockId = getBlockId(startLine);
-    const counts = getCommentCounts(blockId);
+    const changed = isBlockChanged(startLine, endLine || startLine);
 
-    // Determine styling: local takes precedence (orange), then github (blue)
+    // Unchanged blocks: muted, not commentable
+    if (!changed) {
+      return (
+        <Tag className={`unchanged-block ${extraClass}`}>
+          {children}
+        </Tag>
+      );
+    }
+
+    // Changed blocks: full styling, commentable
+    const counts = getCommentCounts(blockId);
     const hasLocal = counts.local > 0;
     const hasGithub = counts.github > 0;
     const isSelected = blockId === selectedBlockId;
 
     return (
       <Tag
-        className={`commentable-block ${extraClass} ${isSelected ? 'selected' : ''} ${hasLocal ? 'has-local' : ''} ${hasGithub && !hasLocal ? 'has-github' : ''}`}
+        className={`commentable-block changed-block ${extraClass} ${isSelected ? 'selected' : ''} ${hasLocal ? 'has-local' : ''} ${hasGithub && !hasLocal ? 'has-github' : ''}`}
         data-block-id={blockId}
       >
         {children}

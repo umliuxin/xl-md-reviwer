@@ -5,15 +5,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run dev      # Start development server (Vite)
+npm run dev      # Start development server (Vite, default http://localhost:5173)
 npm run build    # TypeScript check + production build
+npm run lint     # ESLint with zero-warning policy
 npm run preview  # Preview production build locally
 npm run deploy   # Build and deploy to GitHub Pages
 ```
 
+## Environment
+
+- **Node**: Managed via Volta (v22.22.2, pinned in package.json)
+- **Base path**: `/xl-md-reviwer/` (intentional typo, matches GitHub Pages URL — do not "fix")
+- **Deploy**: Push to `main` auto-deploys via GitHub Actions → gh-pages branch
+- **No test framework**: No unit tests configured; verify changes with `npm run build` + `npm run lint`
+
 ## Architecture
 
-React + TypeScript web app for reviewing markdown files from GitHub PRs with inline commenting.
+React 19 + TypeScript web app for reviewing markdown files from GitHub PRs with inline commenting. State is managed with React `useState`/`useCallback` in `App.tsx` (no external state library for app state despite zustand being installed). CSS is per-component (`styles.css` colocated in each component folder), no CSS modules or Tailwind.
 
 ### Data Flow
 
@@ -31,7 +39,8 @@ React + TypeScript web app for reviewing markdown files from GitHub PRs with inl
 - **Local-first comments**: New comments stored in localStorage as `LocalPendingComment` until batch-published to GitHub.
 - **Unified threads**: `createUnifiedThreads()` merges GitHub threads and local comments by thread ID, displaying them together.
 - **Resolved/Outdated detection**: GraphQL fetches thread resolution status; REST API's `line: null` + `original_line` indicates outdated.
-- **URL persistence**: PR info stored in URL hash (`#owner/repo/number`) for refresh support.
+- **URL persistence**: PR info stored in URL hash (`#owner/repo/number`) for refresh support. Also supports `?pr=<full-github-url>` query param (cleaned after load).
+- **GitHub auth**: Token stored in localStorage, used to create Octokit client. Both REST and GraphQL APIs are used (REST for comments/reviews, GraphQL for thread resolution status).
 
 ### Comment Publishing Flow
 

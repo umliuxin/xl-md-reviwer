@@ -87,6 +87,10 @@ export interface MarkdownFile {
   sha: string;
   // Line number -> block ID mapping (built after parsing)
   lineToBlockId?: Map<number, string>;
+  // Lines changed in this PR (1-based line numbers in head version)
+  changedLines: Set<number>;
+  // How the file was changed in the PR
+  fileStatus: 'added' | 'modified' | 'renamed' | 'copied' | 'changed';
 }
 
 // PR info with comments

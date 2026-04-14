@@ -8,6 +8,7 @@ import type {
   ReviewEvent,
   LocalPendingComment,
 } from '../types';
+import { parseChangedLines } from './diffParser';
 
 let octokit: Octokit | null = null;
 let cachedUser: GitHubUser | null = null;
@@ -114,10 +115,18 @@ export async function fetchPRInfo(owner: string, repo: string, prNumber: number)
       });
 
       if ('content' in data && typeof data.content === 'string') {
+        const fileStatus = (file.status as MarkdownFile['fileStatus']) || 'modified';
+        // For new files, all lines are changed; otherwise parse the diff patch
+        const changedLines = fileStatus === 'added'
+          ? new Set<number>() // Empty set signals "all lines changed" — handled downstream
+          : parseChangedLines(file.patch);
+
         return {
           path: file.filename,
           content: decodeBase64UTF8(data.content.replace(/\n/g, '')),
           sha: data.sha,
+          changedLines,
+          fileStatus,
         };
       }
       throw new Error(`Could not fetch content for ${file.filename}`);

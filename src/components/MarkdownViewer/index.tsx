@@ -15,9 +15,11 @@ interface MarkdownViewerProps {
   changedLines: Set<number>;
   /** Whether this file is newly added in the PR */
   isNewFile: boolean;
+  /** Block IDs that have unsaved draft text */
+  draftBlockIds: Set<string>;
 }
 
-export function MarkdownViewer({ content, filePath, comments, selectedBlockId, onOpenCommentForm, changedLines, isNewFile }: MarkdownViewerProps) {
+export function MarkdownViewer({ content, filePath, comments, selectedBlockId, onOpenCommentForm, changedLines, isNewFile, draftBlockIds }: MarkdownViewerProps) {
   // Use line number as block identifier
   const getBlockId = (line: number) => `${filePath}-line-${line}`;
 
@@ -68,15 +70,23 @@ export function MarkdownViewer({ content, filePath, comments, selectedBlockId, o
     const counts = getCommentCounts(blockId);
     const hasLocal = counts.local > 0;
     const hasGithub = counts.github > 0;
+    const hasDraft = draftBlockIds.has(blockId);
     const isSelected = blockId === selectedBlockId;
 
     return (
       <Tag
-        className={`commentable-block ${!isNewFile ? 'changed-block' : ''} ${extraClass} ${isSelected ? 'selected' : ''} ${hasLocal ? 'has-local' : ''} ${hasGithub && !hasLocal ? 'has-github' : ''}`}
+        className={`commentable-block ${!isNewFile ? 'changed-block' : ''} ${extraClass} ${isSelected ? 'selected' : ''} ${hasLocal ? 'has-local' : ''} ${hasGithub && !hasLocal ? 'has-github' : ''} ${hasDraft ? 'has-draft' : ''}`}
         data-block-id={blockId}
       >
         {children}
         <span className="block-actions">
+          {hasDraft && counts.total === 0 && (
+            <span className="draft-indicator" title="Unsaved draft">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M11.2 1.4L12.6 2.8L3.5 11.9L1.4 12.6L2.1 10.5L11.2 1.4Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+              </svg>
+            </span>
+          )}
           {counts.total > 0 && (
             <span className={`comment-indicator ${hasLocal ? 'local' : 'github'}`}>
               {counts.total}

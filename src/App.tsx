@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { PRInput, updateRecentPRTitle } from './components/PRInput';
 import { MarkdownViewer } from './components/MarkdownViewer';
 import { CommentSidebar } from './components/CommentSidebar';
@@ -88,6 +88,29 @@ function App() {
   const [showInlineForm, setShowInlineForm] = useState(false);
   const [lineMapping, setLineMapping] = useState<Map<number, string> | null>(null);
   const [blockToLine, setBlockToLine] = useState<Map<string, number> | null>(null);
+
+  // In-memory draft cache: blockId → draft text
+  const draftsRef = useRef<Map<string, string>>(new Map());
+  // Trigger re-renders when drafts change (for badge indicators)
+  const [draftBlockIds, setDraftBlockIds] = useState<Set<string>>(new Set());
+
+  const saveDraft = useCallback((blockId: string, text: string) => {
+    if (text.trim()) {
+      draftsRef.current.set(blockId, text);
+    } else {
+      draftsRef.current.delete(blockId);
+    }
+    setDraftBlockIds(new Set(draftsRef.current.keys()));
+  }, []);
+
+  const clearDraft = useCallback((blockId: string) => {
+    draftsRef.current.delete(blockId);
+    setDraftBlockIds(new Set(draftsRef.current.keys()));
+  }, []);
+
+  const getDraft = useCallback((blockId: string): string => {
+    return draftsRef.current.get(blockId) || '';
+  }, []);
 
   // Auto-load PR from URL hash on mount
   useEffect(() => {
@@ -422,6 +445,7 @@ function App() {
             onOpenCommentForm={() => setShowInlineForm(true)}
             changedLines={currentFile.changedLines}
             isNewFile={currentFile.fileStatus === 'added'}
+            draftBlockIds={draftBlockIds}
           />
           {showInlineForm && selectedBlockId && (
             <InlineCommentForm
@@ -431,6 +455,9 @@ function App() {
               onCancel={() => {
                 setShowInlineForm(false);
               }}
+              initialDraft={getDraft(selectedBlockId)}
+              onSaveDraft={saveDraft}
+              onClearDraft={clearDraft}
             />
           )}
         </div>

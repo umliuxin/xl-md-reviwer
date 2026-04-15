@@ -6,6 +6,12 @@ interface InlineCommentFormProps {
   blockId: string;
   onSubmit: (blockId: string, body: string) => Promise<void>;
   onCancel: () => void;
+  /** Restored draft text for this block (from cache) */
+  initialDraft: string;
+  /** Save draft text when form closes without submit/cancel */
+  onSaveDraft: (blockId: string, text: string) => void;
+  /** Clear draft when form is submitted or explicitly cancelled */
+  onClearDraft: (blockId: string) => void;
 }
 
 // Calculate position based on target element
@@ -40,11 +46,16 @@ export function InlineCommentForm({
   blockId,
   onSubmit,
   onCancel,
+  initialDraft,
+  onSaveDraft,
+  onClearDraft,
 }: InlineCommentFormProps) {
-  const [text, setText] = useState('');
+  const [text, setText] = useState(initialDraft);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Track whether form was explicitly closed (submit/cancel) vs unmounted by parent
+  const explicitCloseRef = useRef(false);
 
   // Calculate initial position synchronously
   const [position, setPosition] = useState(() => calculatePosition(blockId) || { top: -9999, left: -9999 });
@@ -70,12 +81,26 @@ export function InlineCommentForm({
     };
   }, [updatePosition]);
 
+  // Keep a ref to current text so the cleanup effect reads the latest value
+  const textRef = useRef(text);
+  textRef.current = text;
+
+  // Auto-save draft on unmount (if not explicitly closed)
+  useEffect(() => {
+    return () => {
+      if (!explicitCloseRef.current && textRef.current.trim()) {
+        onSaveDraft(blockId, textRef.current);
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blockId, onSaveDraft]);
+
   // Auto-focus textarea
   useEffect(() => {
     textareaRef.current?.focus();
   }, []);
 
-  // Handle click outside to cancel
+  // Handle click outside — let parent unmount handle auto-save
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (formRef.current && !formRef.current.contains(e.target as Node)) {
@@ -83,21 +108,20 @@ export function InlineCommentForm({
         const clickedBlock = (e.target as HTMLElement).closest('[data-block-id]');
         if (clickedBlock) return;
 
-        if (!text.trim()) {
-          onCancel();
-        }
+        // Close without explicit cancel — draft will auto-save on unmount
+        onCancel();
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [onCancel, text]);
+  }, [onCancel]);
 
   // Handle Escape key and Ctrl+Enter
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onCancel();
+        handleCancel();
       } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         handleSubmit();
@@ -106,7 +130,7 @@ export function InlineCommentForm({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onCancel, text, isSubmitting]);
+  }, [text, isSubmitting]);
 
   const handleSubmit = async () => {
     if (!text.trim() || isSubmitting) return;
@@ -114,11 +138,19 @@ export function InlineCommentForm({
     setIsSubmitting(true);
     try {
       await onSubmit(blockId, text.trim());
+      explicitCloseRef.current = true;
+      onClearDraft(blockId);
       setText('');
       onCancel();
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleCancel = () => {
+    explicitCloseRef.current = true;
+    onClearDraft(blockId);
+    onCancel();
   };
 
   const form = (
@@ -142,7 +174,7 @@ export function InlineCommentForm({
       <div className="inline-comment-actions">
         <button
           className="cancel-btn"
-          onClick={onCancel}
+          onClick={handleCancel}
           disabled={isSubmitting}
         >
           Cancel
